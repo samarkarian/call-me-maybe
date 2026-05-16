@@ -251,3 +251,7 @@ Tous les fichiers supplémentaires nécessaires à l'exécution de votre solutio
  Docstrings sur toutes les fonctions
 Étape 9 — README
  Toutes les sections obligatoires + explication du constrained decoding
+
+https://huggingface.co/learn/llm-course/en/chapter6/5
+https://tiktokenizer.vercel.app
+

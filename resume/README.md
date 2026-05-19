@@ -255,3 +255,11 @@ Tous les fichiers supplémentaires nécessaires à l'exécution de votre solutio
 https://huggingface.co/learn/llm-course/en/chapter6/5
 https://tiktokenizer.vercel.app
 
+https://huggingface.co/learn/llm-course/en/chapter2/2
+https://jalammar.github.io/illustrated-gpt2/
+
+https://huggingface.co/docs/transformers/main_classes/tokenizer
+https://huggingface.co/learn/llm-course/en/chapter6/1
+
+https://www.promptingguide.ai/fr
+https://huggingface.co/learn/llm-course/en/chapter1/1

@@ -61,7 +61,7 @@ class CallingTest(BaseModel):
     prompt: str
 
 
-def parse_calling_tests(calling_tests: list[Any]) -> None:
+def parse_calling_tests(calling_tests: list[Any]) -> list[Any]:
     """Validate each entry in the calling tests list against CallingTest.
 
     Args:
@@ -74,8 +74,10 @@ def parse_calling_tests(calling_tests: list[Any]) -> None:
             print(err)
             sys.exit(1)
 
+    return calling_tests
 
-def parse_definition(definition: list[Any]) -> None:
+
+def parse_definition(definition: list[Any]) -> list[Any]:
     """Validate each entry in the function definitions list against DefinitionTest.
 
     Args:
@@ -88,9 +90,14 @@ def parse_definition(definition: list[Any]) -> None:
             print(err)
             sys.exit(1)
 
+    return definition
 
-def main_parser() -> None:
-    """Load and validate the input JSON files for calling tests and definitions."""
+def main_parser() -> tuple[list[Any], list[Any]]:
+    """Load and validate the input JSON files for calling tests and definitions.
+
+    Returns:
+        A tuple of (definitions, calling_tests).
+    """
     try:
         with open('./data/input/function_calling_tests.json') as file:
             calling_tests = json.load(file)
@@ -100,5 +107,4 @@ def main_parser() -> None:
         print(err)
         sys.exit(1)
 
-    parse_calling_tests(calling_tests)
-    parse_definition(definition)
+    return parse_definition(definition), parse_calling_tests(calling_tests)

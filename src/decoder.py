@@ -5,7 +5,7 @@ from typing import Any
 def get_valid_token_ids(
     generated: str, valid_names: list[str], vocab: dict[int, str]
 ) -> list[int]:
-    """Return token IDs that are valid continuations of at least one function name.
+    """Return token IDs that are valid continuations of a function name.
 
     Args:
         generated: The function name prefix generated so far.
@@ -65,3 +65,233 @@ def ft_decoder(
         raw_logits = model.get_logits_from_input_ids(input_ids)
 
     return generated_name
+
+
+def force_token(
+    text: str,
+    input_ids: list[int],
+    model: Any,
+    vocab: dict[int, str],
+) -> None:
+    """Force the generation of an exact string token by token.
+
+    Args:
+        text: The exact string to generate.
+        input_ids: The current token sequence, modified in place.
+        model: The LLM instance.
+        vocab: The inverted vocabulary mapping token ID to token string.
+    """
+    remaining = text
+    while remaining:
+        valid_ids = [
+            tid for tid, tstr in vocab.items()
+            if remaining.startswith(tstr)
+        ]
+        logits = model.get_logits_from_input_ids(input_ids)
+        masked = [float('-inf')] * len(logits)
+        for i in valid_ids:
+            masked[i] = logits[i]
+        idx = int(np.argmax(masked))
+        token_str = vocab[idx]
+        input_ids.append(idx)
+        remaining = remaining[len(token_str):]
+
+
+def generate_number(
+    input_ids: list[int],
+    model: Any,
+    vocab: dict[int, str],
+) -> str:
+    """Generate a JSON number value using constrained decoding.
+
+    Args:
+        input_ids: The current token sequence, modified in place.
+        model: The LLM instance.
+        vocab: The inverted vocabulary mapping token ID to token string.
+
+    Returns:
+        The generated number as a string.
+    """
+    import re
+    number_pattern = re.compile(r'^-?(\d+\.?\d*|\.\d+)$')
+    generated = ""
+
+    while True:
+        logits = model.get_logits_from_input_ids(input_ids)
+        valid_ids = []
+        for tid, tstr in vocab.items():
+            candidate = generated + tstr
+            valid = re.match(r'^-?[\d.]*$', candidate)
+            if valid and candidate not in ("-", "."):
+                valid_ids.append(tid)
+        if not valid_ids:
+            break
+        masked = [float('-inf')] * len(logits)
+        for i in valid_ids:
+            masked[i] = logits[i]
+        idx = int(np.argmax(masked))
+        token_str = vocab[idx]
+
+        candidate = generated + token_str
+        if not re.match(r'^-?[\d.]*$', candidate):
+            break
+
+        generated += token_str
+        input_ids.append(idx)
+
+        if number_pattern.match(generated):
+            next_logits = model.get_logits_from_input_ids(input_ids)
+            stop_ids = [
+                tid for tid, tstr in vocab.items()
+                if tstr in (',', '}', ' ', '\n')
+            ]
+            best_stop = max(stop_ids, key=lambda i: next_logits[i])
+            best_any = int(np.argmax(next_logits))
+            stop_close = next_logits[best_stop] > next_logits[best_any] - 1.0
+            if best_any in stop_ids or stop_close:
+                break
+
+    return generated
+
+
+def generate_string(
+    input_ids: list[int],
+    model: Any,
+    vocab: dict[int, str],
+) -> str:
+    """Generate a JSON string value without surrounding quotes.
+
+    Args:
+        input_ids: The current token sequence, modified in place.
+        model: The LLM instance.
+        vocab: The inverted vocabulary mapping token ID to token string.
+
+    Returns:
+        The generated string value (without quotes).
+    """
+    quote_ids = {tid for tid, tstr in vocab.items() if tstr == '"'}
+    generated = ""
+
+    while True:
+        logits = model.get_logits_from_input_ids(input_ids)
+        valid_ids = [
+            tid for tid in vocab
+            if tid not in quote_ids
+        ]
+        masked = [float('-inf')] * len(logits)
+        for i in valid_ids:
+            masked[i] = logits[i]
+
+        # Check if closing quote scores higher than best non-quote
+        best_non_quote = int(np.argmax(masked))
+        best_quote = max(quote_ids, key=lambda i: logits[i])
+        if logits[best_quote] >= masked[best_non_quote]:
+            input_ids.append(best_quote)
+            break
+
+        idx = int(np.argmax(masked))
+        token_str = vocab[idx]
+        generated += token_str
+        input_ids.append(idx)
+
+    return generated
+
+
+def _generate_boolean(
+    input_ids: list[int],
+    model: Any,
+    vocab: dict[int, str],
+) -> str:
+    """Generate a JSON boolean value using constrained decoding.
+
+    Args:
+        input_ids: The current token sequence, modified in place.
+        model: The LLM instance.
+        vocab: The inverted vocabulary mapping token ID to token string.
+
+    Returns:
+        Either 'true' or 'false'.
+    """
+    generated = ""
+    targets = ["true", "false"]
+
+    while generated not in targets:
+        logits = model.get_logits_from_input_ids(input_ids)
+        valid_ids = [
+            tid for tid, tstr in vocab.items()
+            if any(t.startswith(generated + tstr) for t in targets)
+        ]
+        masked = [float('-inf')] * len(logits)
+        for i in valid_ids:
+            masked[i] = logits[i]
+        idx = int(np.argmax(masked))
+        generated += vocab[idx]
+        input_ids.append(idx)
+
+    return generated
+
+
+def _generate_null(
+    input_ids: list[int],
+    model: Any,
+    vocab: dict[int, str],
+) -> None:
+    """Force the generation of the JSON null value.
+
+    Args:
+        input_ids: The current token sequence, modified in place.
+        model: The LLM instance.
+        vocab: The inverted vocabulary mapping token ID to token string.
+    """
+    force_token("null", input_ids, model, vocab)
+
+
+def generate_arguments(
+    input_ids: list[int],
+    model: Any,
+    vocab: dict[int, str],
+    func_def: dict[str, Any],
+) -> dict[str, Any]:
+    """Generate JSON arguments for a function call using constrained decoding.
+
+    Args:
+        input_ids: Token sequence after function name, modified in place.
+        model: The LLM instance.
+        vocab: The inverted vocabulary mapping token ID to token string.
+        func_def: The function definition dict containing 'parameters'.
+
+    Returns:
+        A dict mapping parameter names to their generated values.
+    """
+    parameters = func_def['parameters']
+    result: dict[str, Any] = {}
+
+    force_token('", "parameters": {', input_ids, model, vocab)
+
+    param_items = list(parameters.items())
+    for i, (param_name, param_info) in enumerate(param_items):
+        param_type = param_info['type']
+
+        force_token(f'"{param_name}": ', input_ids, model, vocab)
+
+        if param_type == 'string':
+            force_token('"', input_ids, model, vocab)
+            value: Any = generate_string(input_ids, model, vocab)
+        elif param_type == 'number':
+            value = generate_number(input_ids, model, vocab)
+            value = float(value)
+        elif param_type == 'boolean':
+            raw = _generate_boolean(input_ids, model, vocab)
+            value = raw == 'true'
+        else:
+            _generate_null(input_ids, model, vocab)
+            value = None
+
+        result[param_name] = value
+
+        if i < len(param_items) - 1:
+            force_token(', ', input_ids, model, vocab)
+
+    force_token('}', input_ids, model, vocab)
+
+    return result

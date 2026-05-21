@@ -1,5 +1,5 @@
 import json
-from llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model  # type: ignore
 
 
 def get_model() -> Small_LLM_Model:

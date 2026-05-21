@@ -5,6 +5,7 @@ from pydantic import BaseModel, ValidationError, field_validator
 
 VALID_TYPES = ['string', 'number', 'boolean', 'null']
 
+
 class FieldType(BaseModel):
     """Represents a typed field in a function definition.
 
@@ -78,7 +79,7 @@ def parse_calling_tests(calling_tests: list[Any]) -> list[Any]:
 
 
 def parse_definition(definition: list[Any]) -> list[Any]:
-    """Validate each entry in the function definitions list against DefinitionTest.
+    """Validate each entry in the function definitions list.
 
     Args:
         definition: A list of raw objects loaded from JSON.
@@ -92,16 +93,24 @@ def parse_definition(definition: list[Any]) -> list[Any]:
 
     return definition
 
-def main_parser() -> tuple[list[Any], list[Any]]:
-    """Load and validate the input JSON files for calling tests and definitions.
+
+def main_parser(
+    definitions_path: str = 'data/input/functions_definition.json',
+    input_path: str = 'data/input/function_calling_tests.json',
+) -> tuple[list[Any], list[Any]]:
+    """Load and validate the two input JSON files.
+
+    Args:
+        definitions_path: Path to the functions definition JSON file.
+        input_path: Path to the function calling tests JSON file.
 
     Returns:
         A tuple of (definitions, calling_tests).
     """
     try:
-        with open('./data/input/function_calling_tests.json') as file:
+        with open(input_path) as file:
             calling_tests = json.load(file)
-        with open('./data/input/functions_definition.json') as file:
+        with open(definitions_path) as file:
             definition = json.load(file)
     except Exception as err:
         print(err)

@@ -17,6 +17,6 @@ clean:
 
 lint:
 	uv run python -m flake8 . --extend-exclude $(VENV),$(LIB_LLM_SDK)
-	uv run python -m mypy . $(MYPY_FLAGS)
+	uv run python -m mypy . $(MYPY_FLAGS) --exclude $(LIB_LLM_SDK)
 
 .PHONY: install run debug clean lint

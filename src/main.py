@@ -1,19 +1,50 @@
 import sys
+import json
+import argparse
 from src.parser import main_parser
 from src.prompt import main_prompt
 from src.model import get_model, get_vocab
-from src.decoder import ft_decoder
+from src.decoder import ft_decoder, generate_arguments
 
 
 def main() -> None:
-    definition, calling_tests = main_parser()
+    """Run the function-calling pipeline."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--functions_definition',
+        default='data/input/functions_definition.json',
+    )
+    parser.add_argument(
+        '--input',
+        default='data/input/function_calling_tests.json',
+    )
+    parser.add_argument(
+        '--output',
+        default='data/output/function_calling_results.json',
+    )
+    args = parser.parse_args()
+
+    definition, calling_tests = main_parser(
+        args.functions_definition, args.input
+    )
     model = get_model()
     vocab = get_vocab(model)
     valid_names = [d['name'] for d in definition]
-    prompt_str = main_prompt(definition, calling_tests)
-    input_ids = model.encode(prompt_str)[0].tolist()
-    result = ft_decoder(input_ids, model, valid_names, vocab)
-    print(result)
+    results = []
+    for test in calling_tests:
+        prompt_str = main_prompt(definition, test)
+        input_ids = model.encode(prompt_str)[0].tolist()
+        func_name = ft_decoder(input_ids, model, valid_names, vocab)
+        func_def = next(d for d in definition if d['name'] == func_name)
+        arguments = generate_arguments(input_ids, model, vocab, func_def)
+        results.append({
+            'prompt': test['prompt'],
+            'name': func_name,
+            'parameters': arguments,
+        })
+
+    with open(args.output, 'w') as f:
+        json.dump(results, f, indent=2)
 
 
 if __name__ == "__main__":

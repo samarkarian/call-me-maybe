@@ -182,7 +182,6 @@ def generate_string(
         for i in valid_ids:
             masked[i] = logits[i]
 
-        # Check if closing quote scores higher than best non-quote
         best_non_quote = int(np.argmax(masked))
         best_quote = max(quote_ids, key=lambda i: logits[i])
         if logits[best_quote] >= masked[best_non_quote]:

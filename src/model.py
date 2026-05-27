@@ -20,7 +20,14 @@ def get_vocab(model: Small_LLM_Model) -> dict[int, str]:
     Returns:
         A dict mapping each token ID to its string representation.
     """
+    bpe_replacements = {"Ġ": " ", "Ċ": "\n", "ĉ": "\t"}
     path = model.get_path_to_vocab_file()
     with open(path) as f:
         vocab = json.load(f)
-    return {v: k for k, v in vocab.items()}
+    result = {}
+    for token_str, token_id in vocab.items():
+        clean = token_str
+        for bpe_char, real_char in bpe_replacements.items():
+            clean = clean.replace(bpe_char, real_char)
+        result[token_id] = clean
+    return result

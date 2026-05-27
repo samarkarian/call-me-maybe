@@ -1,6 +1,7 @@
 import sys
 import json
 import argparse
+from pathlib import Path
 from src.parser import main_parser
 from src.prompt import main_prompt
 from src.model import get_model, get_vocab
@@ -36,7 +37,11 @@ def main() -> None:
             prompt_str = main_prompt(definition, test)
             input_ids = model.encode(prompt_str)[0].tolist()
             func_name = ft_decoder(input_ids, model, valid_names, vocab)
-            func_def = next(d for d in definition if d['name'] == func_name)
+            func_def_list = [d for d in definition if d['name'] == func_name]
+            if not func_def_list:
+                print(f"Error: decoded function '{func_name}' not found in definitions.")
+                sys.exit(1)
+            func_def = func_def_list[0]
             arguments = generate_arguments(input_ids, model, vocab, func_def)
             results.append({
                 'prompt': test['prompt'],
@@ -44,6 +49,7 @@ def main() -> None:
                 'parameters': arguments,
             })
 
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         with open(args.output, 'w') as f:
             json.dump(results, f, indent=2)
     except KeyboardInterrupt:

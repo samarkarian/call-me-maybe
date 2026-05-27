@@ -1,3 +1,4 @@
+import re
 import numpy as np
 from typing import Any
 
@@ -22,6 +23,7 @@ def get_valid_token_ids(
             if name.startswith(candidate):
                 valid_ids.append(token_id)
                 break
+
     return valid_ids
 
 
@@ -84,8 +86,8 @@ def force_token(
     remaining = text
     while remaining:
         valid_ids = [
-            tid for tid, tstr in vocab.items()
-            if remaining.startswith(tstr)
+            token_id for token_id, token_str in vocab.items()
+            if remaining.startswith(token_str)
         ]
         logits = model.get_logits_from_input_ids(input_ids)
         masked = [float('-inf')] * len(logits)
@@ -112,18 +114,17 @@ def generate_number(
     Returns:
         The generated number as a string.
     """
-    import re
     number_pattern = re.compile(r'^-?(\d+\.?\d*|\.\d+)$')
     generated = ""
 
     while True:
         logits = model.get_logits_from_input_ids(input_ids)
         valid_ids = []
-        for tid, tstr in vocab.items():
-            candidate = generated + tstr
+        for token_id, token_str in vocab.items():
+            candidate = generated + token_str
             valid = re.match(r'^-?[\d.]*$', candidate)
             if valid and candidate not in ("-", "."):
-                valid_ids.append(tid)
+                valid_ids.append(token_id)
         if not valid_ids:
             break
         masked = [float('-inf')] * len(logits)
@@ -140,10 +141,12 @@ def generate_number(
         input_ids.append(idx)
 
         if number_pattern.match(generated):
+            if '.' in generated:
+                break
             next_logits = model.get_logits_from_input_ids(input_ids)
             stop_ids = [
-                tid for tid, tstr in vocab.items()
-                if tstr in (',', '}', ' ', '\n')
+                token_id for token_id, token_str in vocab.items()
+                if token_str in (',', '}', ' ', '\n')
             ]
             best_stop = max(stop_ids, key=lambda i: next_logits[i])
             best_any = int(np.argmax(next_logits))
@@ -169,34 +172,48 @@ def generate_string(
     Returns:
         The generated string value (without quotes).
     """
-    quote_ids = {tid for tid, tstr in vocab.items() if tstr == '"'}
+    quote_ids = {token_id for token_id, token_str in vocab.items() if '"' in token_str}
     generated = ""
+    char_count = 0
 
     while True:
         logits = model.get_logits_from_input_ids(input_ids)
-        valid_ids = [
-            tid for tid in vocab
-            if tid not in quote_ids
-        ]
+
+        if char_count > 300:
+            exact_quote_ids = [
+                token_id for token_id, token_str in vocab.items()
+                if token_str == '"'
+            ]
+            valid_ids = exact_quote_ids if exact_quote_ids else list(quote_ids)
+        else:
+            valid_ids = [
+                token_id for token_id in vocab
+                if token_id not in quote_ids
+            ]
+
         masked = [float('-inf')] * len(logits)
         for i in valid_ids:
             masked[i] = logits[i]
 
         best_non_quote = int(np.argmax(masked))
         best_quote = max(quote_ids, key=lambda i: logits[i])
-        if logits[best_quote] >= masked[best_non_quote]:
+        if char_count <= 300 and logits[best_quote] >= masked[best_non_quote]:
             input_ids.append(best_quote)
             break
 
         idx = int(np.argmax(masked))
         token_str = vocab[idx]
+        if '"' in token_str:
+            input_ids.append(idx)
+            break
         generated += token_str
+        char_count += len(token_str)
         input_ids.append(idx)
 
     return generated
 
 
-def _generate_boolean(
+def generate_boolean(
     input_ids: list[int],
     model: Any,
     vocab: dict[int, str],
@@ -217,8 +234,8 @@ def _generate_boolean(
     while generated not in targets:
         logits = model.get_logits_from_input_ids(input_ids)
         valid_ids = [
-            tid for tid, tstr in vocab.items()
-            if any(t.startswith(generated + tstr) for t in targets)
+            token_id for token_id, token_str in vocab.items()
+            if any(t.startswith(generated + token_str) for t in targets)
         ]
         masked = [float('-inf')] * len(logits)
         for i in valid_ids:
@@ -230,7 +247,7 @@ def _generate_boolean(
     return generated
 
 
-def _generate_null(
+def generate_null(
     input_ids: list[int],
     model: Any,
     vocab: dict[int, str],
@@ -280,10 +297,10 @@ def generate_arguments(
             value = generate_number(input_ids, model, vocab)
             value = float(value)
         elif param_type == 'boolean':
-            raw = _generate_boolean(input_ids, model, vocab)
+            raw = generate_boolean(input_ids, model, vocab)
             value = raw == 'true'
         else:
-            _generate_null(input_ids, model, vocab)
+            generate_null(input_ids, model, vocab)
             value = None
 
         result[param_name] = value

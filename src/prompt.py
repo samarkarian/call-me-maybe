@@ -11,32 +11,35 @@ def ft_prompt(prompt: dict[str, str], definition: list[Any]) -> str:
     Returns:
         A formatted string ready to be encoded and passed to the LLM.
     """
-    lines = []
-    for d in definition:
-        params = ", ".join(
-            f"{k}: {v['type']}" for k, v in d['parameters'].items()
-        )
-        lines.append(
-            f"- {d['name']}({params})"
-            f" -> {d['returns']['type']}: {d['description']}"
-        )
-
+    lines = [f"{d['name']}: {d['description']}" for d in definition]
     functions_str = "\n".join(lines)
     user_request = prompt['prompt']
 
     return (
-        f"Available functions:\n{functions_str}\n\n"
-        f"User request: {user_request}\n\n"
-        f'Response (JSON):\n{{"name": "'
+        f"You are an expert AI routing agent.\n"
+        f"Your task is to map the user's natural language input to the "
+        f"exact function that can answer it.\n\n"
+        f"AVAILABLE FUNCTIONS:\n{functions_str}\n\n"
+        f"RULES:\n"
+        f"1. Select the most appropriate function from the list above.\n"
+        f"2. Extract the required parameters from the USER INPUT.\n"
+        f"3. Output strictly valid JSON.\n"
+        f"4. If a string is given, extract it from the quotes.\n\n"
+        f'USER INPUT:\n"{user_request}"\n\n'
+        f'{{"prompt":"{user_request}","name":"'
     )
 
 
+
 def main_prompt(definition: list[Any], prompt: Any) -> str:
-    """Run ft_prompt on a random prompt for testing purposes.
+    """Build a prompt string for a given test entry and function definitions.
 
     Args:
         definition: A list of function definition dicts.
-        prompt: A list of prompt dicts.
+        prompt: A dict containing the user prompt under the key 'prompt'.
+
+    Returns:
+        A formatted string ready to be encoded and passed to the LLM.
     """
 
     encode = ft_prompt(prompt, definition)

@@ -89,7 +89,7 @@ while name not complete:
 ## Testing Strategy
 
 - Input files were reduced to a small subset during development to speed up iteration.
-- Each generation function (`generate_number`, `generate_string`, `_generate_boolean`) was tested independently by checking the decoded output against expected values.
+- Each generation function (`generate_number`, `generate_string`, `generate_boolean`) was tested independently by checking the decoded output against expected values.
 - The full pipeline was validated end-to-end by running `uv run python -m src` and inspecting `data/output/function_calling_results.json`.
 
 ## Example Usage

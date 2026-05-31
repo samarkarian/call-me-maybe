@@ -178,6 +178,7 @@ def generate_string(
 
     while True:
         logits = model.get_logits_from_input_ids(input_ids)
+        escaped = generated.endswith('\\')
 
         if char_count > 300:
             exact_quote_ids = [
@@ -185,6 +186,8 @@ def generate_string(
                 if token_str == '"'
             ]
             valid_ids = exact_quote_ids if exact_quote_ids else list(quote_ids)
+        elif escaped:
+            valid_ids = list(vocab.keys())
         else:
             valid_ids = [
                 token_id for token_id in vocab
@@ -197,13 +200,13 @@ def generate_string(
 
         best_non_quote = int(np.argmax(masked))
         best_quote = max(quote_ids, key=lambda i: logits[i])
-        if char_count <= 300 and logits[best_quote] >= masked[best_non_quote]:
+        if not escaped and char_count <= 300 and logits[best_quote] >= masked[best_non_quote]:
             input_ids.append(best_quote)
             break
 
         idx = int(np.argmax(masked))
         token_str = vocab[idx]
-        if '"' in token_str:
+        if not escaped and '"' in token_str:
             input_ids.append(idx)
             break
         generated += token_str

@@ -299,6 +299,9 @@ def generate_arguments(
         elif param_type == 'number':
             value = generate_number(input_ids, model, vocab)
             value = float(value)
+        elif param_type == 'integer':
+            value = generate_number(input_ids, model, vocab)
+            value = int(float(value))
         elif param_type == 'boolean':
             raw = generate_boolean(input_ids, model, vocab)
             value = raw == 'true'

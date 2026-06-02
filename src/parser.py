@@ -3,7 +3,7 @@ import sys
 from typing import Any
 from pydantic import BaseModel, ValidationError, field_validator
 
-VALID_TYPES = ['string', 'number', 'boolean', 'null']
+VALID_TYPES = ['string', 'number', 'integer', 'boolean', 'null']
 
 
 class FieldType(BaseModel):

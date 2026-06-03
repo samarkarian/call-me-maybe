@@ -46,6 +46,7 @@ def ft_decoder(
 
     Returns:
         The selected function name.
+        Example: "fn_greet"
     """
     raw_logits = model.get_logits_from_input_ids(input_ids)
     generated_name = ""
@@ -76,6 +77,12 @@ def force_token(
     vocab: dict[int, str],
 ) -> None:
     """Force the generation of an exact string token by token.
+
+    Modifies input_ids in place by appending the tokens of the exact string.
+    Example:
+        input_ids = [101, 202, 303]
+        force_token('", "parameters": {', input_ids, model, vocab)
+        input_ids = [101, 202, 303, 456, 789, 123, ...]
 
     Args:
         text: The exact string to generate.

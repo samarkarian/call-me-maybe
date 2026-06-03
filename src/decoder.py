@@ -179,7 +179,9 @@ def generate_string(
     Returns:
         The generated string value (without quotes).
     """
-    quote_ids = {token_id for token_id, token_str in vocab.items() if '"' in token_str}
+    quote_ids = {
+        token_id for token_id, token_str in vocab.items() if '"' in token_str
+    }
     generated = ""
     char_count = 0
 
@@ -207,7 +209,8 @@ def generate_string(
 
         best_non_quote = int(np.argmax(masked))
         best_quote = max(quote_ids, key=lambda i: logits[i])
-        if not escaped and char_count <= 300 and logits[best_quote] >= masked[best_non_quote]:
+        if not escaped and char_count <= 300 \
+                and logits[best_quote] >= masked[best_non_quote]:
             input_ids.append(best_quote)
             break
 

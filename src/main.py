@@ -39,7 +39,10 @@ def main() -> None:
             func_name = ft_decoder(input_ids, model, valid_names, vocab)
             func_def_list = [d for d in definition if d['name'] == func_name]
             if not func_def_list:
-                print(f"Error: decoded function '{func_name}' not found in definitions.")
+                print(
+                    f"Error: decoded function "
+                    f"'{func_name}' not found in definitions."
+                )
                 sys.exit(1)
             func_def = func_def_list[0]
             arguments = generate_arguments(input_ids, model, vocab, func_def)

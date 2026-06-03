@@ -30,7 +30,6 @@ def ft_prompt(prompt: dict[str, str], definition: list[Any]) -> str:
     )
 
 
-
 def main_prompt(definition: list[Any], prompt: Any) -> str:
     """Build a prompt string for a given test entry and function definitions.
 
